@@ -1,0 +1,9 @@
+/.pio
+/.vscode
+.pio
+.vscode/.browse.c_cpp.db*
+.vscode/extensions.json
+clean.bat
+config.h
+*.bak
+*.bin
