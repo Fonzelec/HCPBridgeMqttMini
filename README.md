@@ -12,4 +12,5 @@ You'll need a FTDI TTL-232R-3V3 or compatible cable + external power supply (5-2
 
 It is tested and currently works on a SupraMatic 4 door controller, but should also support other models (see forked project readme). As it is small enough, it fits in the accessory compartment of the controller.
 
-If you find this useful, please feel free to [donate](https://ko-fi.com/fonzelec) and support my work !
+If you find this useful, please feel free to [donate](https://ko-fi.com/fonzelec) and support my work !  
+![Donate link - qr-code small](https://github.com/user-attachments/assets/b348edc0-156b-4894-a24d-6f2f65e282b7)
