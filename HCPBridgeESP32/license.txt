@@ -1,0 +1,4 @@
+HCPBridgeMqttMini software license
+----------------------------------
+
+The firmware source code for this project HCPBridgeMqttMini is provided under the AGPLv3 license, except that any commercial use is prohibited.
