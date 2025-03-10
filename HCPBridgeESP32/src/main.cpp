@@ -60,6 +60,7 @@ AsyncWebServer server(80);
   float bme_last_hum = -99.99;
   float bme_pres = -99.99;
   float bme_last_pres = -99.99;
+  int i2c_onoffpin = 0;
   int i2c_sdapin = 0;
   int i2c_sclpin = 0;
 #endif
@@ -177,7 +178,6 @@ void setuptMqttStrings(){
   strcpy(mqttStrings.sensor_topic, mqttStrings.st_sensor_topic.c_str());
   strcpy(mqttStrings.debug_topic, mqttStrings.st_debug_topic.c_str());
 }
-
 void IRAM_ATTR reset_button_change(){
   if (digitalRead(0) == 0)
   {
@@ -199,7 +199,7 @@ void resetPreferences()
 {
   xTimerStop(resetTimer, 0);
   Serial.println("Resetting config...");
-  //prefHandler.resetPreferences();
+  prefHandler.resetPreferences();
 }
 
 void switchLamp(bool on){
@@ -753,20 +753,31 @@ void SensorCheck(void *parameter){
       }
     #endif
     #ifdef USE_BME
-      I2CBME.begin(i2c_sdapin, i2c_sclpin);   // https://randomnerdtutorials.com/esp32-i2c-communication-arduino-ide/
-      bme_status = bme.begin(0x76, &I2CBME);  // check sensor. adreess can be 0x76 or 0x77
+      if (digitalRead(i2c_onoffpin) == LOW) {
+        digitalWrite(i2c_onoffpin, HIGH);   // activate sensor
+        sleep(10);
+        I2CBME.begin(i2c_sdapin, i2c_sclpin);   // https://randomnerdtutorials.com/esp32-i2c-communication-arduino-ide/
+        bme_status = bme.begin(0x76, &I2CBME);  // check sensor. adreess can be 0x76 or 0x77
+      }
       if (!bme_status) {
         bme_status = bme.begin(0x77, &I2CBME);  // check sensor. address can be 0x76 or 0x77
       }
-      bme_temp = bme.readTemperature();   // round float
-      bme_hum = bme.readHumidity();
-      bme_pres = bme.readPressure()/100;  // convert from pascal to mbar
-      if (bme_hum < 99.9){                   // I2C hung up ...
-        if (abs(bme_temp-bme_last_temp) >= sensor_temp_thresh || abs(bme_hum-bme_last_hum) >= sensor_hum_thresh || abs(bme_pres-bme_last_pres) >= sensor_pres_thresh){
-          bme_last_temp = bme_temp;
-          bme_last_hum = bme_hum;
-          bme_last_pres = bme_pres;
-          new_sensor_data = true;
+      if (!bme_status) {
+        digitalWrite(i2c_onoffpin, LOW);      // deactivate sensor
+      }
+      else {
+        bme_temp = bme.readTemperature();   // round float
+        bme_hum = bme.readHumidity();
+        bme_pres = bme.readPressure()/100;  // convert from pascal to mbar
+        if (bme_hum < 99.9){                   // I2C hung up ...
+          if (abs(bme_temp-bme_last_temp) >= sensor_temp_thresh || abs(bme_hum-bme_last_hum) >= sensor_hum_thresh || abs(bme_pres-bme_last_pres) >= sensor_pres_thresh){
+            bme_last_temp = bme_temp;
+            bme_last_hum = bme_hum;
+            bme_last_pres = bme_pres;
+            new_sensor_data = true;
+          }
+        } else {
+          digitalWrite(i2c_onoffpin, LOW);      // deactivate sensor
         }
       }
     #endif
@@ -923,9 +934,35 @@ const char* generateUniqueID() {
    return uniqueID;
 }
 
+void LED_init (void)
+{
+  pinMode(GPIO_LED, OUTPUT); // Initialize GPIO2 as an output pin 
+  digitalWrite(GPIO_LED, HIGH); // Set GPIO2 to a HIGH state
+}
+
+void LED_blink(void)
+{
+  unsigned long currentMillis = millis(); // Get the current time in milliseconds
+  unsigned long currentMilliInPeriod = currentMillis % NORMAL_BLINK_PERIOD;
+  uint8_t ledVal = digitalRead(GPIO_LED);
+
+  if (currentMilliInPeriod < NORMAL_BLINK_PERIOD-100 )
+  {
+    if (ledVal)
+      digitalWrite(GPIO_LED, 0);  // Set LED OFF
+  }
+  else
+  {
+    if (!ledVal)
+      digitalWrite(GPIO_LED, 1);  // Set LED ON
+  }
+}
+
 // setup mcu
 void setup()
-{
+{ 
+  LED_init(); //LED on to show ESP booting
+
   // Serial
   Serial.begin(9600);
 
@@ -936,11 +973,6 @@ void setup()
   } 
 */  
 
-  #ifdef HCP_Giffordv2
-    pinMode(LED1, OUTPUT); // Sets the trigPin as an Output
-    digitalWrite(LED1, HIGH);
-  #endif
-
   // setup preferences
   prefHandler.initPreferences();
   localPrefs = prefHandler.getPreferences();
@@ -948,7 +980,7 @@ void setup()
   hoermannEngine->setup(localPrefs);
 
   //Add interrupts for Factoryreset over Boot button
-  pinMode(0, INPUT);
+  pinMode(0, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(0), reset_button_change, CHANGE);
   resetTimer = xTimerCreate("resetTimer", pdMS_TO_TICKS(10), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(resetPreferences));
 
@@ -1013,6 +1045,7 @@ void setup()
     #ifdef USE_BME
       i2c_sdapin = localPrefs->getInt(preference_sensor_i2c_sda);
       i2c_sclpin = localPrefs->getInt(preference_sensor_i2c_scl);
+      pinMode(i2c_onoffpin, OUTPUT);
       I2CBME.begin(i2c_sdapin, i2c_sclpin);   // https://randomnerdtutorials.com/esp32-i2c-communication-arduino-ide/
       bme_status = bme.begin(0x76, &I2CBME);  // check sensor. adreess can be 0x76 or 0x77
       //bme_status = bme.begin();  // check sensor. adreess can be 0x76 or 0x77
@@ -1092,9 +1125,6 @@ void setup()
                   dtostrf(dht22_temp,2,1,buf);
                   strcat(buf, " °C");
                   sensors["temp"] = buf;
-                  dtostrf(dht22_hum,2,1,buf); 
-                  strcat(buf, " %");
-                  sensors["hum"] = buf;
                 #endif
                 #ifdef USE_HCSR04
                   dtostrf(hcsr04_distanceCm,2,0,buf);
@@ -1209,13 +1239,11 @@ void setup()
   ElegantOTA.setAuth(OTA_USERNAME, OTA_PASSWD);
 
   server.begin();
-  #ifdef HCP_Giffordv2
-    pinMode(LED1, OUTPUT); // Sets the trigPin as an Output
-    digitalWrite(LED1, LOW);
-  #endif
 }
 
 // mainloop
 void loop(){
+  LED_blink();  // led blink to show ESP activity
+
   ElegantOTA.loop();
 }

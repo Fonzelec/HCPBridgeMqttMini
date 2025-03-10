@@ -1,16 +1,17 @@
 #ifndef CONFIGURATION_H_
     #define CONFIGURATION_H_
-    
-    // Please change on every new firmware builds!
-    const char *HA_VERSION = "0.0.7.2";
-
     // WIFI Hostname
+
     const char HOSTNAME[]   = "HCPBRIDGE";
 
     // Station -> set AP_ACTIF to false if you wanna use password from config file
     const bool AP_ACTIF = (bool)true;
     const char* STA_SSID   = "";
     const char* STA_PASSWD = "";
+
+    //Status LED D2
+    #define GPIO_LED 2
+    #define NORMAL_BLINK_PERIOD 5000    //blink period in ms
 
     //RS485 pins
     #ifdef CONFIG_IDF_TARGET_ESP32S3
@@ -70,23 +71,13 @@
     #define oneWireBus 4     //GPIO where the DS18B20 is connected to
 
     // NOTICE: Breadboards should have 2k2 or 3k3 PullUp resistor between SCL and SDA! If not: interferences
-    //BME280
-    #ifdef HCP_Giffordv2
-        #define I2C_SDA 21
-        #define I2C_SCL 33
-    #else
-        #define I2C_SDA 21
-        #define I2C_SCL 22
-    #endif
+    //BME280                     
+    #define I2C_SDA 21
+    #define I2C_SCL 22
 
-    //HC-SR04
-    #ifdef HCP_Giffordv2
-        #define SR04_TRIGPIN 5
-        #define SR04_ECHOPIN 48
-    #else
-        #define SR04_TRIGPIN 5
-        #define SR04_ECHOPIN 18
-    #endif
+    //HC-SR04                   
+    #define SR04_TRIGPIN 5
+    #define SR04_ECHOPIN 18
     #define SR04_MAXDISTANCECM 150
     #define SOUND_SPEED 0.034   //define sound speed in cm/uS
 
@@ -95,22 +86,7 @@
     #define DHTTYPE DHT22
 
     //HC-SR501
-    #ifdef HCP_Giffordv2
-        #define SR501PIN 23
-    #else
-        #define SR501PIN 34
-    #endif
-
-    //digital in- and outputs
-    #ifdef HCP_Giffordv2
-        #define LED1 13
-        #define INPUT1 12
-        #define INPUT2 14
-        #define OUTPUT1 37
-        #define OUTPUT2 35
-        #define MQ2_ANALOG 36
-        #define MQ2_DIG 15
-    #endif
+    #define SR501PIN 23
 
     // MQTT strings
     #define HA_DISCOVERY_BIN_SENSOR "homeassistant/binary_sensor/%s/%s/config"
@@ -154,5 +130,6 @@
         const char *HA_ONLINE = "online";
         const char *HA_OFFLINE = "offline";
     #endif
+    const char *HA_VERSION = "0.0.7.2";
 
 #endif
